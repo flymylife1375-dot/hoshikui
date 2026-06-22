@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ホシクイ｜5分で惑星をどこまで削れる？</title>
+<style>
+  :root{
+    --bg:#fdf3ff; --ink:#3a2b4a; --ink-soft:#7a6a8c;
+    --card:#fff; --line:#efe2f7;
+    --pink:#ff7eb6; --pink-d:#d94e8e;
+    --mint:#5fd6c4; --mint-d:#2aa593;
+    --sun:#ffce4a; --sun-d:#d99e10;
+    --grape:#a78bfa; --grape-d:#7c5fe0;
+    --shadow:0 6px 0 rgba(58,43,74,.12);
+    --r:18px;
+    /* rarity */
+    --rc-white:#c9bcd6; --rc-blue:#5aa9f0; --rc-gold:#ffba3a; --rc-red:#ff5d72;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;overflow:hidden;}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+    font-weight:700;user-select:none;display:flex;flex-direction:column;height:100dvh;
+  }
+  .topbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;
+    padding:calc(10px + env(safe-area-inset-top,0px)) 12px 6px;}
+  .res{display:flex;align-items:center;gap:6px;background:var(--card);
+    border:2px solid var(--line);border-radius:999px;padding:6px 12px;
+    box-shadow:var(--shadow);font-size:14px;}
+  .res .ic{font-size:16px;}
+  .res b{font-size:16px;}
+  .grow{flex:1;}
+  .iconbtn{width:40px;height:40px;flex:0 0 auto;border:2px solid var(--line);
+    background:var(--card);border-radius:13px;box-shadow:var(--shadow);
+    font-size:17px;cursor:pointer;color:var(--ink);position:relative;}
+  .iconbtn:active{transform:translateY(2px);box-shadow:0 4px 0 rgba(58,43,74,.12);}
+  .iconbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--pink);
+    color:#fff;font-size:11px;border-radius:999px;min-width:18px;height:18px;
+    line-height:18px;padding:0 3px;box-shadow:0 2px 0 rgba(217,78,142,.4);}
+
+  /* timer bar */
+  .timerwrap{flex:0 0 auto;padding:2px 12px 6px;}
+  .timerbar{height:10px;background:#fff;border:2px solid var(--line);
+    border-radius:999px;overflow:hidden;box-shadow:var(--shadow);}
+  .timerfill{height:100%;width:100%;background:linear-gradient(90deg,var(--mint),var(--sun));
+    transition:width .25s linear;}
+  .timertxt{text-align:center;font-size:12px;color:var(--ink-soft);margin-top:3px;}
+
+  .stage{flex:1 1 auto;position:relative;min-height:0;}
+  #game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+  .planet-name{position:absolute;left:0;right:0;top:6px;text-align:center;pointer-events:none;z-index:3;}
+  .planet-name .lv{font-size:13px;color:var(--ink-soft);letter-spacing:1px;}
+  .planet-name .nm{font-size:21px;color:var(--ink);text-shadow:0 2px 0 #fff;}
+  .best{position:absolute;right:12px;top:6px;font-size:12px;color:var(--grape-d);
+    background:#f3effd;border:2px solid #e3d9fb;border-radius:999px;padding:3px 9px;
+    pointer-events:none;z-index:3;}
+
+  .hpwrap{position:absolute;left:18px;right:18px;bottom:12px;z-index:3;pointer-events:none;}
+  .hpbar{height:15px;background:#fff;border:2px solid var(--line);border-radius:999px;
+    overflow:hidden;box-shadow:var(--shadow);}
+  .hpfill{height:100%;width:100%;background:linear-gradient(90deg,var(--pink),var(--sun));
+    transition:width .1s linear;}
+  .hptxt{text-align:center;font-size:11px;color:var(--ink-soft);margin-top:4px;text-shadow:0 1px 0 #fff;}
+
+  .tip{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:4;
+    pointer-events:none;text-align:center;color:var(--ink);font-size:18px;
+    text-shadow:0 2px 0 #fff;animation:bob 1.4s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,-58%)}}
+
+  .shopwrap{position:relative;flex:0 0 auto;}
+  .buymode{display:flex;align-items:center;gap:6px;justify-content:center;
+    background:var(--card);border-top:2px solid var(--line);padding:7px 10px 0;}
+  .buymode .lbl{font-size:11px;color:var(--ink-soft);}
+  .buymode .seg{display:flex;gap:5px;}
+  .buymode .seg button{border:2px solid var(--line);background:#fff;color:var(--ink-soft);
+    border-radius:999px;padding:4px 13px;font-family:inherit;font-weight:700;font-size:12px;
+    cursor:pointer;box-shadow:0 3px 0 rgba(58,43,74,.10);}
+  .buymode .seg button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(58,43,74,.10);}
+  .buymode .seg button.on{background:var(--grape);color:#fff;border-color:var(--grape-d);
+    box-shadow:0 3px 0 rgba(124,95,224,.4);}
+  .shop{background:var(--card);border-top:2px solid var(--line);
+    padding:9px 10px calc(10px + env(safe-area-inset-bottom,0px));
+    display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .buy{border:2px solid var(--line);background:#fff;border-radius:var(--r);
+    padding:8px 6px 7px;box-shadow:var(--shadow);cursor:pointer;text-align:center;
+    transition:transform .05s;}
+  .buy:active{transform:translateY(2px);box-shadow:0 4px 0 rgba(58,43,74,.12);}
+  .buy.can{border-color:var(--mint);}
+  .buy .bic{font-size:22px;line-height:1;}
+  .buy .bt{font-size:12px;margin-top:2px;}
+  .buy .bl{font-size:10px;color:var(--ink-soft);margin-top:1px;}
+  .buy .bc{margin-top:5px;font-size:12px;color:var(--mint-d);background:#effbf8;
+    border-radius:999px;padding:2px 5px;}
+  .buy .bc.no{color:var(--pink-d);background:#fff0f6;}
+
+  /* modal */
+  .scrim{position:absolute;inset:0;z-index:20;background:rgba(58,43,74,.5);
+    display:none;align-items:center;justify-content:center;padding:20px;}
+  .scrim.show{display:flex;}
+  .modal{background:var(--card);border-radius:24px;padding:20px 18px;max-width:350px;
+    width:100%;text-align:center;box-shadow:0 12px 0 rgba(58,43,74,.18);
+    animation:pop .25s ease;max-height:88dvh;overflow:auto;}
+  @keyframes pop{0%{transform:scale(.85);opacity:0}100%{transform:scale(1);opacity:1}}
+  .modal h2{margin:0 0 4px;font-size:20px;}
+  .modal p{margin:5px 0;color:var(--ink-soft);font-size:13px;line-height:1.7;}
+  .modal .big{font-size:30px;color:var(--grape-d);margin:6px 0;}
+  .mbtn{margin-top:12px;width:100%;border:none;border-radius:14px;padding:13px;
+    font-size:16px;font-family:inherit;font-weight:700;color:#fff;
+    background:linear-gradient(90deg,var(--mint),var(--mint-d));
+    box-shadow:0 5px 0 rgba(42,165,147,.4);cursor:pointer;}
+  .mbtn:active{transform:translateY(2px);box-shadow:0 3px 0 rgba(42,165,147,.4);}
+  .mbtn:disabled{opacity:.5;}
+  .mbtn.ghost{background:#fff;color:var(--ink-soft);border:2px solid var(--line);
+    box-shadow:var(--shadow);}
+  .mbtn.gacha{background:linear-gradient(90deg,var(--grape),var(--pink));
+    box-shadow:0 5px 0 rgba(124,95,224,.4);}
+  .mbtn.gacha:active{box-shadow:0 3px 0 rgba(124,95,224,.4);}
+  .statline{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);
+    padding:5px 2px;border-bottom:1px dashed var(--line);}
+  .statline b{color:var(--ink);}
+
+  /* stat strip in gacha */
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0;}
+  .statcard{border:2px solid var(--line);border-radius:14px;padding:7px;background:#fff;
+    display:flex;align-items:center;gap:7px;font-size:13px;}
+  .statcard .si{font-size:20px;}
+  .statcard .sv{margin-left:auto;color:var(--grape-d);font-size:13px;}
+
+  /* gacha reveal card */
+  .gcard{border:3px solid var(--rc-white);border-radius:18px;padding:16px 12px;margin:10px 0;
+    background:#fff;animation:reveal .4s ease;}
+  @keyframes reveal{0%{transform:rotateY(90deg) scale(.7);opacity:0}100%{transform:none;opacity:1}}
+  .gcard.r-white{border-color:var(--rc-white);}
+  .gcard.r-blue{border-color:var(--rc-blue);box-shadow:0 0 0 4px rgba(90,169,240,.18);}
+  .gcard.r-gold{border-color:var(--rc-gold);box-shadow:0 0 0 5px rgba(255,186,58,.25);}
+  .gcard.r-red{border-color:var(--rc-red);box-shadow:0 0 0 6px rgba(255,93,114,.3);animation:reveal .4s ease, redpulse 1.1s ease-in-out infinite .4s;}
+  @keyframes redpulse{0%,100%{box-shadow:0 0 0 6px rgba(255,93,114,.3)}50%{box-shadow:0 0 0 10px rgba(255,93,114,.12)}}
+  .gcard .gic{font-size:46px;line-height:1;}
+  .gcard .grar{font-size:12px;letter-spacing:2px;margin-top:5px;}
+  .gcard .gnm{font-size:17px;margin-top:3px;}
+  .gcard .geff{font-size:14px;color:var(--mint-d);margin-top:6px;}
+  .gcard .glv{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .r-white .grar{color:var(--rc-white);} .r-blue .grar{color:var(--rc-blue);}
+  .r-gold .grar{color:var(--sun-d);} .r-red .grar{color:var(--rc-red);}
+
+  .floatlayer{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;}
+  .fnum{position:absolute;font-size:18px;color:var(--pink-d);text-shadow:0 2px 0 #fff;
+    animation:fly .7s ease-out forwards;}
+  .fnum.crit{font-size:26px;color:var(--rc-red);}
+  @keyframes fly{0%{transform:translate(-50%,0) scale(.6);opacity:0}
+    18%{opacity:1;transform:translate(-50%,-12px) scale(1.1)}
+    100%{transform:translate(-50%,-60px) scale(1);opacity:0}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="res"><span class="ic">💎</span><b id="ore">0</b></div>
+  <div class="res"><span class="ic">🌟</span><b id="stars">0</b></div>
+  <div class="grow"></div>
+  <button class="iconbtn" id="btnGacha" aria-label="ガチャ">🎁<span class="badge" id="gachaBadge" style="display:none">!</span></button>
+  <button class="iconbtn" id="btnStats" aria-label="記録">📊</button>
+</div>
+
+<div class="timerwrap">
+  <div class="timerbar"><div class="timerfill" id="timerfill"></div></div>
+  <div class="timertxt" id="timertxt">のこり 5:00</div>
+</div>
+
+<div class="stage">
+  <canvas id="game"></canvas>
+  <div class="planet-name">
+    <div class="lv" id="pLv">PLANET 1</div>
+    <div class="nm" id="pName">あおぞら星</div>
+  </div>
+  <div class="best" id="best">ベスト 0</div>
+  <div class="floatlayer" id="floatLayer"></div>
+  <div class="tip" id="tip">タップして削ろう！</div>
+  <div class="hpwrap">
+    <div class="hpbar"><div class="hpfill" id="hpfill"></div></div>
+    <div class="hptxt" id="hptxt"></div>
+  </div>
+</div>
+
+<div class="shopwrap">
+  <div class="buymode">
+    <span class="lbl">まとめ買い</span>
+    <div class="seg" id="buyModeSeg">
+      <button data-mode="1" class="on">×1</button>
+      <button data-mode="10">×10</button>
+      <button data-mode="max">MAX</button>
+    </div>
+  </div>
+  <div class="shop">
+    <button class="buy" id="buyMunch">
+      <div class="bic">👾</div><div class="bt">なかまをふやす</div>
+      <div class="bl">自動で削る <span id="munchN">×0</span></div>
+      <div class="bc" id="munchC">10💎</div>
+    </button>
+    <button class="buy" id="buyTap">
+      <div class="bic">✊</div><div class="bt">ちから強化</div>
+      <div class="bl">1タップ <span id="tapN">+1</span></div>
+      <div class="bc" id="tapC">15💎</div>
+    </button>
+    <button class="buy" id="buySpeed">
+      <div class="bic">⚡</div><div class="bt">はやさ強化</div>
+      <div class="bl">削り速度 <span id="spdN">×1.0</span></div>
+      <div class="bc" id="spdC">50💎</div>
+    </button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"><div class="modal" id="modal"></div></div>
+
+<script>
+"use strict";
+/* =========================================================
+   ホシクイ Planet Munchers — full version
+   5分スコアアタック / 強制転生 / 放置スター蓄積 / スターガチャ
+   うぞうぞ小人 + 突然変異(クリティカル)
+   1ファイル / localStorageのみ / リテンション計測込み
+   ========================================================= */
+
+const SAVE_KEY="hoshikui_save_v2";
+const RET_KEY ="hoshikui_ret_v2";
+const ROUND_SEC=300;            // 5分
+const IDLE_STAR_PER_HOUR=3;     // 放置1時間=3スター
+const GACHA_COST=5;             // ガチャ1回5スター
+
+const $=id=>document.getElementById(id);
+function fmt(n){ n=Math.floor(n); if(n<1000)return""+n;
+  const u=["","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"]; let t=0;
+  while(n>=1000&&t<u.length-1){n/=1000;t++;}
+  return (n<10?n.toFixed(2):n<100?n.toFixed(1):Math.floor(n))+u[t]; }
+function fmtPct(x){ return (x>=10? x.toFixed(0): x.toFixed(1)); }
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function clock(s){ s=Math.max(0,Math.ceil(s)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+
+/* ---------- planets ---------- */
+const PLANETS=[
+  {nm:"あおぞら星",c1:"#7ec8ff",c2:"#4aa3f0",core:"#ffe28a"},
+  {nm:"もえぎ星",  c1:"#9be88a",c2:"#5fc46b",core:"#ffd0e8"},
+  {nm:"さくら星",  c1:"#ffb3d1",c2:"#ff7eb6",core:"#fff0a0"},
+  {nm:"こはく星",  c1:"#ffcf6b",c2:"#f0a23a",core:"#fff6c8"},
+  {nm:"すみれ星",  c1:"#c4a8ff",c2:"#a78bfa",core:"#d6fff2"},
+  {nm:"るり星",    c1:"#6ad6ff",c2:"#2aa5d9",core:"#ffe0a0"},
+  {nm:"べに星",    c1:"#ff9b8a",c2:"#f0603a",core:"#fff0d0"},
+  {nm:"ゆき星",    c1:"#e8f4ff",c2:"#b8d8f0",core:"#ffe0ec"},
+];
+function planetTheme(i){return PLANETS[(i-1)%PLANETS.length];}
+
+/* ---------- stats & artifacts ---------- */
+const STATS={
+  power:{ic:"🗡️",nm:"ちから"},
+  ally :{ic:"👾",nm:"なかま"},
+  speed:{ic:"⚡",nm:"はやさ"},
+  greed:{ic:"💎",nm:"よくばり"},
+};
+const RARITY=[
+  {key:"white",nm:"コモン",cls:"r-white",p:0.62, base:[3,6]},
+  {key:"blue", nm:"レア",  cls:"r-blue", p:0.26, base:[8,14]},
+  {key:"gold", nm:"エピック",cls:"r-gold",p:0.10, base:[20,32]},
+  {key:"red",  nm:"レジェンド",cls:"r-red",p:0.02, base:[55,80]},
+];
+const ART_NAMES={
+  power:["ちからのかけら","削りの牙","断ち切る爪","星砕きの拳"],
+  ally :["なかまのたまご","群れの笛","増殖のもと","大群の核"],
+  speed:["はやさの羽","加速の歯車","疾走のしっぽ","光速の靴"],
+  greed:["よくばりの粒","金運のお守り","強欲のうろこ","星屑の冠"],
+};
+const ART_ICON={power:["🦷","🗡️","🪓","💥"],ally:["🥚","📯","🧫","🌀"],
+  speed:["🪽","⚙️","🐾","👟"],greed:["✨","🍀","🐉","👑"]};
+
+function rollRarity(){ let r=Math.random(),acc=0; for(const R of RARITY){acc+=R.p; if(r<acc)return R;} return RARITY[0]; }
+function rarityRank(R){ return RARITY.findIndex(x=>x.key===R.key); }
+
+/* ---------- state ---------- */
+function freshRound(){
+  return { ore:0, planet:1, planetHp:50, planetMax:50,
+    munchers:0, tapLv:0, speedLv:0, cMunch:10, cTap:15, cSpeed:50 };
+}
+function freshState(){
+  return Object.assign(freshRound(), {
+    stars:0, best:1, totalOre:0, roundsPlayed:0,
+    artifacts:{}, // key -> {stat,tier,lv}
+    timeLeft:ROUND_SEC,
+    lastClose:0, pendingIdleStars:0,
+  });
+}
+let S=load();
+function load(){ try{const raw=localStorage.getItem(SAVE_KEY); if(raw)return Object.assign(freshState(),JSON.parse(raw));}catch(e){} return freshState(); }
+function save(){ S.lastClose=Date.now(); try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){} }
+
+/* ---------- artifact bonuses (sqrt逓減) ---------- */
+function artLevelValue(art){
+  // tier base × sqrtカーブ：Lv1で base、以降 +base*(sqrt(lv)-sqrt(lv-1))
+  const R=RARITY.find(r=>r.key===art.tier);
+  const b=(R.base[0]+R.base[1])/2; // %の基準
+  return b * Math.sqrt(art.lv);     // Lvは上がりやすいが効果は逓減
+}
+function statBonus(stat){ // returns multiplier (1 + sum%)  ※allyは別計算
+  let sum=0;
+  for(const k in S.artifacts){ const a=S.artifacts[k]; if(a.stat===stat && stat!=="ally") sum+=artLevelValue(a); }
+  return 1 + sum/100;
+}
+// なかま＝初期小人の追加(整数)。レア度ごとに1Lvあたりの体数が違う
+const ALLY_PER_LV={white:1, blue:2, gold:4, red:8};
+function allyValueOf(art){ return (ALLY_PER_LV[art.tier]||1) * art.lv; } // そのアーティファクト単体の体数
+function statBonusFlatAlly(){
+  let sum=0;
+  for(const k in S.artifacts){ const a=S.artifacts[k]; if(a.stat==="ally") sum+=allyValueOf(a); }
+  return sum;
+}
+
+/* effective stats */
+function effTapPow(){ const base=1+S.tapLv; return Math.max(1, Math.floor(base*statBonus("power"))); }
+function effSpeed(){ return (1+S.speedLv*0.5)*statBonus("speed"); }
+function effGreed(){ return statBonus("greed"); } // スター獲得倍率
+function startMunchers(){ return statBonusFlatAlly(); }
+
+/* =========================================================
+   CANVAS
+   ========================================================= */
+const cv=$("game"),ctx=cv.getContext("2d");
+let W=0,H=0,DPR=1,cx=0,cy=0,planetR=0;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  const r=cv.getBoundingClientRect(); W=r.width;H=r.height;
+  cv.width=W*DPR;cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  cx=W/2;cy=H/2; planetR=Math.min(W,H)*0.30;
+}
+window.addEventListener("resize",resize);
+
+/* 惑星のベース半径：PLANET番号が進むほど大きく、画面の45%(=直径90%)で頭打ち */
+function planetBaseR(){
+  const minR=Math.min(W,H)*0.22;          // PLANET1の小ささ
+  const maxR=Math.min(W,H)*0.45;          // 画面9割で頭打ち
+  // 12惑星くらいで上限に達するゆるい曲線
+  const t=1-Math.pow(0.86, S.planet-1);   // 0→1 に漸近
+  return minR + (maxR-minR)*t;
+}
+/* 削れも反映した実効半径（描画・小人の周回に使う） */
+function planetDrawR(){
+  return planetBaseR()*(0.55+0.45*(Math.max(0,S.planetHp)/S.planetMax));
+}
+
+const MAX_DRAWN=90;
+let swarm=[];
+const GUY_COLORS=["#ff7eb6","#5fd6c4","#ffce4a","#a78bfa","#7ec8ff","#9be88a"];
+const MUT_COLORS=["#9dff3a","#ff3ad6","#3affd0","#c6ff00"];
+function rebuildSwarm(){
+  const n=Math.min(MAX_DRAWN,S.munchers);
+  while(swarm.length<n){
+    swarm.push({
+      a:Math.random()*Math.PI*2,
+      spin:(Math.random()*0.4+0.12)*(Math.random()<.5?-1:1),
+      r:0.84+Math.random()*0.22,
+      bob:Math.random()*Math.PI*2,
+      wob:Math.random()*Math.PI*2,                  // 不規則うぞうぞ用
+      wobSpd:0.5+Math.random()*1.2,
+      col:GUY_COLORS[(Math.random()*GUY_COLORS.length)|0],
+      sz:7+Math.random()*4,
+      mut:0,                                         // 変異タイマー(>0で変異中)
+      eyes:1+((Math.random()*2)|0),                 // 1〜2目(普段)
+    });
+  }
+  if(swarm.length>n) swarm.length=n;
+}
+
+let bites=[];
+function spawnBite(x,y,big,mut){
+  const c=mut?16:(big?10:4);
+  for(let i=0;i<c;i++){
+    const a=Math.random()*Math.PI*2,sp=(mut?3:(big?2.2:1.4))*(0.5+Math.random());
+    bites.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:1,
+      col:mut?MUT_COLORS[(Math.random()*MUT_COLORS.length)|0]:GUY_COLORS[(Math.random()*GUY_COLORS.length)|0],
+      sz:mut?6:(big?5:3)});
+  }
+}
+let shake=0,lastT=performance.now();
+
+function frame(now){
+  const dt=Math.min(40,now-lastT); lastT=now;
+  ctx.clearRect(0,0,W,H);
+  const th=planetTheme(S.planet);
+  let ox=0,oy=0;
+  if(shake>0){ox=(Math.random()-.5)*shake;oy=(Math.random()-.5)*shake;shake*=0.86;if(shake<0.4)shake=0;}
+
+  const pr=planetDrawR();
+  const g=ctx.createRadialGradient(cx+ox-pr*0.3,cy+oy-pr*0.3,pr*0.2,cx+ox,cy+oy,pr);
+  g.addColorStop(0,th.c1);g.addColorStop(1,th.c2);
+  ctx.beginPath();ctx.arc(cx+ox,cy+oy,pr,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+  const coreShow=1-(Math.max(0,S.planetHp)/S.planetMax);
+  if(coreShow>0.25){ctx.beginPath();ctx.arc(cx+ox,cy+oy,pr*0.45*coreShow,0,7);
+    ctx.fillStyle=th.core;ctx.globalAlpha=0.9;ctx.fill();ctx.globalAlpha=1;}
+  // face
+  ctx.fillStyle="rgba(58,43,74,.55)";const eo=pr*0.28;
+  ctx.beginPath();ctx.arc(cx+ox-eo,cy+oy-pr*0.08,pr*0.07,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(cx+ox+eo,cy+oy-pr*0.08,pr*0.07,0,7);ctx.fill();
+  ctx.strokeStyle="rgba(58,43,74,.5)";ctx.lineWidth=Math.max(2,pr*0.025);ctx.lineCap="round";
+  ctx.beginPath();ctx.arc(cx+ox,cy+oy+pr*0.06,pr*0.16,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
+
+  // munchers — うぞうぞ
+  for(const s of swarm){
+    s.a+=s.spin*dt*0.001;
+    s.bob+=dt*0.006;
+    s.wob+=dt*0.001*s.wobSpd;
+    if(s.mut>0) s.mut-=dt;
+    const isMut=s.mut>0;
+    // 不規則な揺らぎ
+    const jitterR=Math.sin(s.wob)*4 + Math.sin(s.wob*2.3)*2;
+    const jitterA=Math.sin(s.wob*1.7)*0.05;
+    const rr=pr*s.r + Math.sin(s.bob)*3 + jitterR;
+    const ang=s.a+jitterA;
+    const x=cx+ox+Math.cos(ang)*rr, y=cy+oy+Math.sin(ang)*rr;
+    // 伸び縮み(非対称スケール)
+    const sx=1+Math.sin(s.wob*1.3)*0.18 + (isMut?0.5:0);
+    const sy=1+Math.cos(s.wob*1.1)*0.18 + (isMut?0.4:0);
+    const sz=s.sz*(isMut?1.7:1);
+    const col=isMut?MUT_COLORS[(s.a*7|0)%MUT_COLORS.length]:s.col;
+    ctx.save(); ctx.translate(x,y); ctx.scale(sx,sy);
+    ctx.beginPath();ctx.arc(0,0,sz,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+    // eyes — 変異中は増える
+    const ne=isMut?(3+((s.a*5|0)%3)):s.eyes;
+    ctx.fillStyle="#3a2b4a";
+    for(let e=0;e<ne;e++){
+      const ea=(e/ne)*Math.PI*2 + s.wob;
+      const ex=Math.cos(ea)*sz*0.4, ey=Math.sin(ea)*sz*0.4 - sz*0.05;
+      ctx.beginPath();ctx.arc(ex,ey,sz*0.16,0,7);ctx.fill();
+    }
+    // 変異中はギザ口
+    if(isMut){ ctx.strokeStyle="#3a2b4a";ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(-sz*0.5,sz*0.4);
+      for(let k=-2;k<=2;k++)ctx.lineTo(k*sz*0.22, sz*0.4+(k%2?-sz*0.22:0));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  for(let i=bites.length-1;i>=0;i--){
+    const b=bites[i];
+    b.x+=b.vx*dt*0.06;b.y+=b.vy*dt*0.06;b.vy+=0.10*dt*0.06;b.life-=dt*0.0022;
+    if(b.life<=0){bites.splice(i,1);continue;}
+    ctx.globalAlpha=Math.max(0,b.life);
+    ctx.beginPath();ctx.arc(b.x,b.y,b.sz,0,7);ctx.fillStyle=b.col;ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+   GAME LOGIC
+   ========================================================= */
+function planetHpForLevel(lv){ return Math.floor(50*Math.pow(1.55,lv-1)); }
+
+function damage(amount,fromX,fromY,kind){ // kind: 'tap'|'auto'|'crit'
+  if(S.planetHp<=0||roundOver) return;
+  S.planetHp-=amount; S.ore+=amount; S.totalOre+=amount;
+  if(fromX!=null){
+    spawnBite(fromX,fromY,kind==='tap',kind==='crit');
+    floatNum((kind==='crit'?"💥+":"+")+fmt(amount),fromX,fromY,kind==='crit');
+  }
+  shake=kind==='crit'?16:(kind==='tap'?4:0)+shake*0;
+  if(kind==='auto') shake=Math.max(shake,1.5);
+  if(S.planetHp<=0) nextPlanet();
+  refreshHUD();
+}
+
+let tapCount=0;
+function onTap(x,y){
+  if(roundOver) return;
+  $("tip").style.display="none";
+  damage(effTapPow(),x,y,'tap');
+  tapCount++; if(tapCount%25===0) save();
+}
+
+/* munchers auto + 突然変異クリティカル */
+let dpsAcc=0, mutTimer=0;
+function muncherTick(dt){
+  if(roundOver) return;
+  if(S.munchers<=0||S.planetHp<=0) return;
+  const dps=S.munchers*effSpeed()*0.8;
+  dpsAcc+=dps*dt/1000;
+  if(dpsAcc>=1){ const chunk=Math.floor(dpsAcc); dpsAcc-=chunk;
+    const a=Math.random()*Math.PI*2,rr=planetDrawR()*0.7;
+    damage(chunk,cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,'auto'); }
+  // 変異：そこそこ頻度（平均~3.5秒に1回）
+  mutTimer-=dt;
+  if(mutTimer<=0){
+    mutTimer=2500+Math.random()*2500;
+    triggerMutation();
+  }
+}
+function triggerMutation(){
+  if(swarm.length===0||S.planetHp<=0||roundOver) return;
+  const s=swarm[(Math.random()*swarm.length)|0];
+  s.mut=600; // 0.6秒キモ全振り
+  const a=s.a, rr=planetDrawR()*0.8;
+  const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr;
+  // 通常autoの10倍相当を一撃
+  const oneAuto=Math.max(1, Math.floor(effSpeed()*0.8));
+  const critDmg=Math.max(effTapPow()*10, oneAuto*10);
+  damage(critDmg,x,y,'crit');
+}
+
+function nextPlanet(){
+  S.planet++;
+  if(S.planet>S.best) S.best=S.planet;
+  S.planetMax=planetHpForLevel(S.planet);
+  S.planetHp=S.planetMax; dpsAcc=0;
+  applyPlanetName(); refreshHUD();
+}
+
+/* ---------- shop ---------- */
+let buyMode="1"; // "1" | "10" | "max"
+// 各強化の定義（コスト取得・適用・コスト更新を1か所に）
+const UPGRADES={
+  munch:{ cost:()=>S.cMunch, apply:()=>{S.munchers++;}, bump:()=>{S.cMunch=Math.ceil(S.cMunch*1.15);}, after:()=>rebuildSwarm() },
+  tap:  { cost:()=>S.cTap,   apply:()=>{S.tapLv++;},    bump:()=>{S.cTap=Math.ceil(S.cTap*1.22);} },
+  speed:{ cost:()=>S.cSpeed, apply:()=>{S.speedLv++;},  bump:()=>{S.cSpeed=Math.ceil(S.cSpeed*1.45);} },
+};
+function buyOne(key){
+  const u=UPGRADES[key];
+  if(S.ore<u.cost()) return false;
+  S.ore-=u.cost(); u.apply(); u.bump();
+  return true;
+}
+// モードに応じて複数購入。長押しからも呼ばれる
+function buyUpgrade(key){
+  const u=UPGRADES[key];
+  let bought=0;
+  if(buyMode==="1"){ if(buyOne(key))bought=1; }
+  else if(buyMode==="10"){ for(let i=0;i<10;i++){ if(!buyOne(key))break; bought++; } }
+  else { // MAX：買える限界まで（安全のため上限回数）
+    for(let i=0;i<5000;i++){ if(!buyOne(key))break; bought++; }
+  }
+  if(bought>0){ if(u.after)u.after(); refreshHUD(); }
+  return bought;
+}
+
+/* =========================================================
+   ROUND TIMER + 強制転生
+   ========================================================= */
+let roundOver=false;
+function tickRound(dt){
+  if(roundOver) return;
+  S.timeLeft-=dt/1000;
+  if(S.timeLeft<=0){ S.timeLeft=0; endRound(); }
+  const pct=S.timeLeft/ROUND_SEC*100;
+  $("timerfill").style.width=pct+"%";
+  $("timertxt").textContent="のこり "+clock(S.timeLeft);
+}
+function endRound(){
+  roundOver=true;
+  S.roundsPlayed++;
+  const reached=S.planet;
+  // スター獲得：到達惑星 × よくばり
+  const got=Math.max(1, Math.floor((reached*1.2 + S.totalOre/300) * effGreed()));
+  S.stars+=got;
+  const newBest = reached>=S.best;
+  if(reached>S.best) S.best=reached;
+  save();
+  showRoundEnd(reached,got,newBest);
+}
+function startNewRound(){
+  const keepStars=S.stars, keepBest=S.best, keepTotal=S.totalOre,
+        keepRounds=S.roundsPlayed, keepArt=S.artifacts;
+  Object.assign(S,freshRound());
+  S.stars=keepStars;S.best=keepBest;S.totalOre=keepTotal;
+  S.roundsPlayed=keepRounds;S.artifacts=keepArt;
+  S.timeLeft=ROUND_SEC;
+  S.munchers=startMunchers();   // ★アーティファクトで初期小人
+  roundOver=false; dpsAcc=0; mutTimer=2000;
+  rebuildSwarm(); applyPlanetName(); refreshHUD(); save();
+  $("tip").style.display="block";
+  hideModal();
+}
+
+/* =========================================================
+   IDLE STARS （放置中タイマー停止・スターだけ貯まる）
+   ========================================================= */
+function applyIdleGains(){
+  if(!S.lastClose) return 0;
+  const ms=Date.now()-S.lastClose;
+  if(ms<60000) return 0; // 1分未満は無視
+  const hours=ms/3600000;
+  const got=Math.floor(hours*IDLE_STAR_PER_HOUR*effGreed());
+  if(got>0){ S.pendingIdleStars=got; }
+  return got;
+}
+
+/* =========================================================
+   GACHA
+   ========================================================= */
+function canGacha(){ return S.stars>=GACHA_COST; }
+function doGacha(){
+  if(!canGacha()) return null;
+  S.stars-=GACHA_COST;
+  const R=rollRarity();
+  const statKeys=Object.keys(STATS);
+  const stat=statKeys[(Math.random()*statKeys.length)|0];
+  const tier=R.key, rank=rarityRank(R);
+  const key=stat+"_"+tier;
+  let art=S.artifacts[key];
+  let leveled=false;
+  if(art){ art.lv++; leveled=true; }
+  else { art={stat,tier,lv:1,
+    name:ART_NAMES[stat][rank], icon:ART_ICON[stat][rank]}; S.artifacts[key]=art; }
+  save();
+  return {art,R,leveled};
+}
+
+/* =========================================================
+   HUD / MODALS
+   ========================================================= */
+function applyPlanetName(){ const th=planetTheme(S.planet);
+  $("pLv").textContent="PLANET "+S.planet; $("pName").textContent=th.nm; }
+function refreshHUD(){
+  $("ore").textContent=fmt(S.ore);
+  $("stars").textContent=fmt(S.stars);
+  $("best").textContent="ベスト "+S.best;
+  const pct=Math.max(0,S.planetHp)/S.planetMax*100;
+  $("hpfill").style.width=pct+"%";
+  $("hptxt").textContent=fmt(Math.max(0,S.planetHp))+" / "+fmt(S.planetMax);
+  $("munchN").textContent="×"+fmt(S.munchers);
+  $("tapN").textContent="+"+fmt(effTapPow());
+  $("spdN").textContent="×"+effSpeed().toFixed(1);
+  setBuy("buyMunch","munchC",S.cMunch);
+  setBuy("buyTap","tapC",S.cTap);
+  setBuy("buySpeed","spdC",S.cSpeed);
+  $("gachaBadge").style.display=canGacha()?"block":"none";
+}
+function setBuy(btnId,costId,cost){ const can=S.ore>=cost;
+  $(btnId).classList.toggle("can",can);
+  const c=$(costId); c.textContent=fmt(cost)+"💎"; c.classList.toggle("no",!can); }
+
+function floatNum(txt,x,y,crit){ const fl=$("floatLayer");
+  const el=document.createElement("div"); el.className="fnum"+(crit?" crit":"");
+  el.textContent=txt; el.style.left=x+"px";el.style.top=y+"px";
+  fl.appendChild(el); setTimeout(()=>el.remove(),700); }
+
+function showModal(html){ $("modal").innerHTML=html; $("scrim").classList.add("show"); }
+function hideModal(){ $("scrim").classList.remove("show"); }
+
+/* ---------- share ---------- */
+function shareScore(reached, btnEl){
+  const url = location.href.split('#')[0];
+  const text = `🪐ホシクイ — 5分でPLANET ${reached} まで惑星を削った！\n君はどこまで行ける？\n${url}`;
+  // 1) Web Share API（スマホの共有シート）
+  if(navigator.share){
+    navigator.share({ title:"ホシクイ", text:text }).catch(()=>{});
+    return;
+  }
+  // 2) クリップボード
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(
+      ()=>{ if(btnEl){ const o=btnEl.textContent; btnEl.textContent="コピーした！貼って共有してね"; setTimeout(()=>btnEl.textContent=o,1800);} },
+      ()=>{ prompt("この文をコピーして共有してね", text); }
+    );
+    return;
+  }
+  // 3) 最終手段
+  prompt("この文をコピーして共有してね", text);
+}
+
+function showRoundEnd(reached,got,newBest){
+  showModal(`
+    <h2>⏰ タイムアップ！</h2>
+    ${newBest?'<p style="color:var(--grape-d)">🎉 ベスト更新！</p>':''}
+    <div class="big">PLANET ${reached} 到達</div>
+    <p>削った星から<br><b>🌟 ${fmt(got)}</b> スターを収穫した</p>
+    <p style="font-size:12px">スターでガチャを引いて、<br>永久に強くなろう</p>
+    <button class="mbtn gacha" id="rGacha">🎁 ガチャを引く（${GACHA_COST}🌟）</button>
+    <button class="mbtn" id="rAgain">▶ もう一度 5分</button>
+    <button class="mbtn ghost" id="rShare">📣 結果をシェア</button>
+  `);
+  $("rAgain").onclick=startNewRound;
+  $("rGacha").onclick=()=>{ if(canGacha()) openGacha(true); else startNewRound(); };
+  $("rGacha").disabled=!canGacha();
+  $("rShare").onclick=()=>shareScore(reached, $("rShare"));
+}
+
+function statSummaryHTML(){
+  let h='<div class="statgrid">';
+  for(const k in STATS){
+    const st=STATS[k];
+    let val;
+    if(k==="ally") val="+"+fmt(statBonusFlatAlly())+"体";
+    else val="×"+statBonus(k).toFixed(2);
+    h+=`<div class="statcard"><span class="si">${st.ic}</span>${st.nm}<span class="sv">${val}</span></div>`;
+  }
+  return h+'</div>';
+}
+
+function openGacha(fromRoundEnd){
+  showModal(`
+    <h2>🎁 スターガチャ</h2>
+    <p>1回 ${GACHA_COST}🌟 ／ 所持 <b id="gStars">${fmt(S.stars)}</b>🌟</p>
+    ${statSummaryHTML()}
+    <div id="gResult"></div>
+    <button class="mbtn gacha" id="gPull">引く（${GACHA_COST}🌟）</button>
+    <button class="mbtn ghost" id="gClose">${fromRoundEnd?'▶ もう一度 5分へ':'とじる'}</button>
+  `);
+  const pull=$("gPull");
+  function refresh(){ $("gStars").textContent=fmt(S.stars); pull.disabled=!canGacha();
+    $("gClose").previousElementSibling; }
+  refresh();
+  pull.onclick=()=>{
+    const res=doGacha();
+    if(!res){ return; }
+    const {art,R,leveled}=res;
+    const isAlly=art.stat==='ally';
+    const effStr=isAlly ? ('+'+fmt(allyValueOf(art))+'体') : ('+'+fmtPct(artLevelValue(art))+'%');
+    $("gResult").innerHTML=`
+      <div class="gcard ${R.cls}">
+        <div class="gic">${art.icon}</div>
+        <div class="grar">${R.nm}</div>
+        <div class="gnm">${art.name}</div>
+        <div class="geff">${STATS[art.stat].ic} ${STATS[art.stat].nm} ${effStr}</div>
+        <div class="glv">${leveled?'Lv.'+art.lv+' にアップ！':'NEW! Lv.1'}</div>
+      </div>`;
+    // 上の合計表示も更新
+    const grid=$("gResult").parentNode.querySelector(".statgrid");
+    if(grid) grid.outerHTML=statSummaryHTML();
+    refreshHUD(); refresh();
+  };
+  $("gClose").onclick=()=>{ if(fromRoundEnd) startNewRound(); else hideModal(); };
+}
+
+function showStats(){
+  flushSession();
+  let r; try{r=JSON.parse(localStorage.getItem(RET_KEY))||{};}catch(e){r={};}
+  const mins=Math.round((r.totalMs||0)/60000);
+  let artCount=Object.keys(S.artifacts).length;
+  showModal(`
+    <h2>📊 きろく</h2>
+    <div class="statline"><span>ベスト到達</span><b>PLANET ${S.best}</b></div>
+    <div class="statline"><span>あそんだ日数</span><b>${r.days||1}日</b></div>
+    <div class="statline"><span>連続ログイン</span><b>${r.streak||1}日</b></div>
+    <div class="statline"><span>起動回数</span><b>${r.sessions||1}回</b></div>
+    <div class="statline"><span>合計プレイ</span><b>${mins}分</b></div>
+    <div class="statline"><span>プレイ回数</span><b>${S.roundsPlayed}回</b></div>
+    <div class="statline"><span>アーティファクト</span><b>${artCount}種</b></div>
+    <div class="statline"><span>スター</span><b>${fmt(S.stars)}🌟</b></div>
+    ${statSummaryHTML()}
+    <button class="mbtn" id="mExport">記録をコピー</button>
+    <button class="mbtn ghost" id="mShare">📣 ベストをシェア</button>
+    <button class="mbtn ghost" id="mClose">とじる</button>
+  `);
+  $("mClose").onclick=hideModal;
+  $("mShare").onclick=()=>shareScore(S.best, $("mShare"));
+  $("mExport").onclick=()=>{
+    const data={ret:r,best:S.best,rounds:S.roundsPlayed,totalOre:S.totalOre,
+      stars:S.stars,artifacts:Object.keys(S.artifacts).length,ts:new Date().toISOString()};
+    const txt=JSON.stringify(data);
+    navigator.clipboard?.writeText(txt).then(
+      ()=>{$("mExport").textContent="コピーした！";},
+      ()=>{prompt("この記録をコピーしてClaudeに渡してね",txt);});
+  };
+}
+
+function showWelcomeBack(idleStars){
+  showModal(`
+    <h2>🌙 おかえり！</h2>
+    <p>るすのあいだに、なかまが<br>こっそりスターをあつめてたよ</p>
+    <div class="big">🌟 +${fmt(idleStars)}</div>
+    <button class="mbtn gacha" id="wGacha">🎁 ガチャを引く</button>
+    <button class="mbtn" id="wStart">▶ 5分スタート</button>
+  `);
+  $("wStart").onclick=()=>{ hideModal(); };
+  $("wGacha").onclick=()=>{ openGacha(false); };
+}
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+function relPos(e){ const r=cv.getBoundingClientRect();
+  const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+cv.addEventListener("pointerdown",e=>{ e.preventDefault(); const p=relPos(e); onTap(p.x,p.y); },{passive:false});
+/* --- 強化ボタン：タップ=1回分(モード準拠) / 長押し=連続購入 --- */
+function bindHold(btnId, key){
+  const el=$(btnId);
+  let holdTimer=null, repeatTimer=null, held=false;
+  const startRepeat=()=>{ held=true;
+    repeatTimer=setInterval(()=>{ const n=buyUpgrade(key); if(n===0){ stop(); } }, 140); };
+  const start=e=>{ e.preventDefault(); held=false;
+    holdTimer=setTimeout(startRepeat, 350); }; // 350ms以上で長押し扱い
+  const stop=()=>{ clearTimeout(holdTimer); clearInterval(repeatTimer);
+    holdTimer=repeatTimer=null; };
+  const end=e=>{ if(e)e.preventDefault();
+    if(!held){ buyUpgrade(key); } // 短押し=1回分(モード準拠)
+    stop(); held=false; };
+  el.addEventListener("pointerdown",start,{passive:false});
+  el.addEventListener("pointerup",end,{passive:false});
+  el.addEventListener("pointerleave",()=>{ if(held)stop(); });
+  el.addEventListener("pointercancel",stop);
+}
+bindHold("buyMunch","munch"); bindHold("buyTap","tap"); bindHold("buySpeed","speed");
+
+// まとめ買いトグル
+$("buyModeSeg").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  buyMode=b.dataset.mode;
+  [...$("buyModeSeg").children].forEach(x=>x.classList.toggle("on",x===b));
+});
+
+$("btnGacha").onclick=()=>openGacha(false);
+$("btnStats").onclick=showStats;
+$("scrim").addEventListener("pointerdown",e=>{ if(e.target===$("scrim")) hideModal(); });
+
+/* =========================================================
+   RETENTION
+   ========================================================= */
+function trackRetention(){
+  let r; try{r=JSON.parse(localStorage.getItem(RET_KEY))||null;}catch(e){r=null;}
+  const today=todayStr(),now=Date.now();
+  if(!r){ r={firstDay:today,lastDay:today,days:1,streak:1,sessions:1,totalMs:0,_start:now}; }
+  else{ r.sessions=(r.sessions||0)+1;
+    if(r.lastDay!==today){ const prev=new Date(r.lastDay),cur=new Date(today);
+      const diff=Math.round((cur-prev)/86400000); r.days=(r.days||1)+1;
+      r.streak=(diff===1)?(r.streak||1)+1:1; r.lastDay=today; }
+    r._start=now; }
+  localStorage.setItem(RET_KEY,JSON.stringify(r)); return r;
+}
+function flushSession(){ try{ const r=JSON.parse(localStorage.getItem(RET_KEY));
+  if(r&&r._start){ r.totalMs=(r.totalMs||0)+(Date.now()-r._start); r._start=Date.now();
+    localStorage.setItem(RET_KEY,JSON.stringify(r)); } }catch(e){} }
+trackRetention();
+setInterval(flushSession,15000);
+window.addEventListener("visibilitychange",()=>{ if(document.hidden){flushSession();save();} });
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+function boot(){
+  resize();
+  if(!S.planetMax){ S.planetMax=planetHpForLevel(S.planet); S.planetHp=S.planetMax; }
+  // 放置スター
+  const idle=applyIdleGains();
+  // 前回ラウンドが時間切れ状態なら新ラウンド扱い
+  if(S.timeLeft<=0){ Object.assign(S,freshRound()); S.timeLeft=ROUND_SEC;
+    S.munchers=startMunchers(); }
+  applyPlanetName(); rebuildSwarm(); refreshHUD();
+  if(idle>0){ S.stars+=idle; S.pendingIdleStars=0; refreshHUD(); showWelcomeBack(idle); }
+  requestAnimationFrame(frame);
+  let last=performance.now();
+  setInterval(()=>{ const n=performance.now(); const dt=n-last; last=n;
+    muncherTick(dt); tickRound(dt); },100);
+  setInterval(save,10000);
+}
+boot();
+</script>
+</body>
+</html>
