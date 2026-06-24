@@ -214,7 +214,7 @@ const TS=40, WW=200, WH=260, SURF=38;
 
 const T={AIR:0,GRASS:1,DIRT:2,STONE:3,COAL:4,IRON:5,GOLD:6,DIAMOND:7,
   BRICK:8,BEDROCK:9,IRON_BLK:10,GOLD_BLK:11,CRYSTAL:12,
-  CRAFT_TABLE:13,FURNACE:14,WOOD_LOG:15,LEAVES:16,WOOD_PLANK:17,BED:18};
+  CRAFT_TABLE:13,FURNACE:14,WOOD_LOG:15,LEAVES:16,WOOD_PLANK:17,BED:18,CHEST:19};
 
 // Tile hardness: how many "units" to mine (DPS * time)
 const THp={
@@ -222,16 +222,17 @@ const THp={
   [T.GOLD]:165,[T.DIAMOND]:210,[T.BRICK]:95,[T.BEDROCK]:1e9,
   [T.IRON_BLK]:140,[T.GOLD_BLK]:140,[T.CRYSTAL]:140,
   [T.CRAFT_TABLE]:70,[T.FURNACE]:70,[T.WOOD_LOG]:30,[T.LEAVES]:5,
-  [T.WOOD_PLANK]:70,[T.BED]:50,
+  [T.WOOD_PLANK]:70,[T.BED]:50,[T.CHEST]:55,
 };
 
 const TCo={ // main color
   [T.GRASS]:'#4a9e38',[T.DIRT]:'#7a5030',[T.STONE]:'#6a7880',
-  [T.COAL]:'#606878',[T.IRON]:'#6a7880',[T.GOLD]:'#6a7880',
-  [T.DIAMOND]:'#506878',[T.BRICK]:'#c03020',[T.BEDROCK]:'#181818',
+  [T.COAL]:'#2e3038',[T.IRON]:'#525e68',[T.GOLD]:'#706218',[T.DIAMOND]:'#124a60',
+  [T.BRICK]:'#c03020',[T.BEDROCK]:'#181818',
   [T.IRON_BLK]:'#788898',[T.GOLD_BLK]:'#c09010',[T.CRYSTAL]:'#70c8e0',
   [T.CRAFT_TABLE]:'#8a5828',[T.FURNACE]:'#504038',
   [T.WOOD_LOG]:'#7a4e28',[T.LEAVES]:'#2a8020',[T.WOOD_PLANK]:'#c08040',[T.BED]:'#cc2020',
+  [T.CHEST]:'#8a5018',
 };
 
 const ITEMS={
@@ -299,6 +300,18 @@ const WARP_TX=HOME_X+2, WARP_TY=SURF-2; // teleport tile position
 let _s=54321;
 function rng(){_s=(_s*1664525+1013904223)&0xffffffff;return((_s>>>0)/4294967295);}
 
+function genCaves(){
+  for(let i=0;i<28;i++){
+    const x=4+Math.floor(rng()*(WW-8));
+    const depth=8+Math.floor(rng()*220);
+    const y=SURF+depth;
+    if(y>=WH-4)continue;
+    // Small alcove (3×3 clearing)
+    for(let dx=-1;dx<=1;dx++)for(let dy=0;dy<=2;dy++)st(x+dx,y-dy,T.AIR);
+    st(x,y,T.CHEST);
+  }
+}
+
 function genWorld(){
   world.fill(0);
   for(let x=0;x<WW;x++){
@@ -322,6 +335,7 @@ function genWorld(){
   }
   genTrees();
   genHome();
+  genCaves();
 }
 
 function genTrees(){
@@ -357,12 +371,12 @@ function genHome(){
   }
   // Floor
   for(let dx=0;dx<W;dx++)st(hx+dx,hy,T.WOOD_PLANK);
-  // Roof
-  for(let dx=0;dx<W;dx++)st(hx+dx,hy-IH-1,T.WOOD_PLANK);
-  // Left wall
-  for(let dy=1;dy<=IH;dy++)st(hx,hy-dy,T.WOOD_PLANK);
-  // Right wall (dy=1,2 = door gap)
-  for(let dy=1;dy<=IH;dy++){if(dy>2)st(hx+W-1,hy-dy,T.WOOD_PLANK);}
+  // Roof (WOOD_LOG — no passive income from home)
+  for(let dx=0;dx<W;dx++)st(hx+dx,hy-IH-1,T.WOOD_LOG);
+  // Left wall (WOOD_LOG)
+  for(let dy=1;dy<=IH;dy++)st(hx,hy-dy,T.WOOD_LOG);
+  // Right wall (door gap at dy=1,2)
+  for(let dy=1;dy<=IH;dy++){if(dy>2)st(hx+W-1,hy-dy,T.WOOD_LOG);}
   // Interior
   st(hx+1,hy-1,T.BED);          // bed (warp anchor)
   st(hx+4,hy-1,T.CRAFT_TABLE);  // pre-placed craft table
@@ -381,6 +395,9 @@ let craftTab='craft';
 let hasCraftTable=false,hasFurnace=false;
 let warpActive=false,warpTimer=0;
 const WARP_DUR=2;
+let comboTimer=0,comboCount=0;
+let shakeDur=0;
+let depthRecord=0;
 
 function addItem(id,n=1){inv[id]=(inv[id]||0)+n;updatePick();updateHotbar();markDirty();}
 function remItem(id,n=1){inv[id]=Math.max(0,(inv[id]||0)-n);if(!inv[id])delete inv[id];updatePick();updateHotbar();markDirty();}
@@ -594,9 +611,9 @@ function updateDigTarget(){
       tx=Math.floor(pcx/TS);
       ty=Math.floor((P.y+P.h+2)/TS);
     } else {
-      // Dig UP
+      // Dig UP — target tile directly above player's head tile
       tx=Math.floor(pcx/TS);
-      ty=Math.floor((P.y-2)/TS);
+      ty=Math.floor(P.y/TS)-1;
     }
   } else if(adx>0.18){
     // Dig HORIZONTAL — check 3 y-levels
@@ -635,14 +652,36 @@ const DROPS={
   [T.BRICK]:'brick',[T.IRON_BLK]:'iron_frame',[T.GOLD_BLK]:'gold_frame',
   [T.CRYSTAL]:'crystal_tile',[T.CRAFT_TABLE]:'craft_table',[T.FURNACE]:'furnace',
   [T.WOOD_LOG]:'wood',[T.LEAVES]:null,[T.WOOD_PLANK]:'wood_plank',[T.BED]:null,
+  [T.CHEST]:null,
 };
+function chestVal(tx,ty){
+  const depth=Math.max(0,ty-SURF);
+  const base=depth<25?800:depth<55?6000:depth<100?35000:220000;
+  const r=((tx*73856093^ty*19349663)>>>0)%80;
+  return Math.floor(base*(0.6+r/100));
+}
 function breakBlock(tx,ty){
   const t=gt(tx,ty);
   const drop=DROPS[t];
-  if(drop){addItem(drop);showNotif('+1 '+ITEMS[drop].emoji+ITEMS[drop].name,'good');}
+  if(t===T.CHEST){
+    const v=chestVal(tx,ty);
+    money+=v;checkWin();
+    showNotif('💰 宝箱！+'+v.toLocaleString()+'円！','money');
+  } else if(drop){
+    addItem(drop);showNotif('+1 '+ITEMS[drop].emoji+ITEMS[drop].name,'good');
+  }
   st(tx,ty,T.AIR);
   recalcIncome();recalcFac();
   spawnParts(tx*TS+TS/2,ty*TS+TS/2,TCo[t]||'#888');
+  // Combo
+  comboCount++;comboTimer=1.5;
+  if(comboCount>=5){
+    const bonus=comboCount*8;money+=bonus;checkWin();
+    showNotif('⚡ '+comboCount+'コンボ！+'+bonus+'円ボーナス！','money');
+  }
+  // Screen shake (stronger for rare finds)
+  const shakeMap={[T.DIAMOND]:0.22,[T.GOLD]:0.15,[T.IRON]:0.10,[T.CHEST]:0.30};
+  shakeDur=shakeMap[t]??0.07;
 }
 
 // ══════════════════════════════════════════
@@ -661,6 +700,8 @@ function updateParts(dt){
     p.x+=p.vx;p.vy+=0.18;p.y+=p.vy;p.life-=dt;
     if(p.life<=0)parts.splice(i,1);
   }
+  if(comboTimer>0){comboTimer-=dt;if(comboTimer<=0){comboTimer=0;comboCount=0;}}
+  if(shakeDur>0)shakeDur=Math.max(0,shakeDur-dt);
 }
 
 // ══════════════════════════════════════════
@@ -918,8 +959,8 @@ function drawTile(t,sx,sy,prog){
     ctx.strokeRect(sx+TS/4,sy+TS/2+1,TS/2,TS/2-3);
     ctx.strokeRect(sx+TS*0.75,sy+TS/2+1,TS*0.25-2,TS/2-3);
   }
-  // Ore veins
-  const oreCol={[T.COAL]:'#14141c',[T.IRON]:'#a06040',[T.GOLD]:'#c0a020',[T.DIAMOND]:'#48b8d0'};
+  // Ore veins — bright colors so ores stand out
+  const oreCol={[T.COAL]:'#08080f',[T.IRON]:'#c07040',[T.GOLD]:'#e8c820',[T.DIAMOND]:'#50e8ff'};
   if(oreCol[t]){
     ctx.fillStyle=oreCol[t];
     const dots=[{x:.22,y:.24,rx:5,ry:4},{x:.6,y:.55,rx:6,ry:5},{x:.35,y:.68,rx:4,ry:3}];
@@ -954,6 +995,21 @@ function drawTile(t,sx,sy,prog){
   if(t===T.BEDROCK){
     ctx.fillStyle='rgba(255,255,255,.04)';
     for(let i=0;i<4;i++)ctx.fillRect(sx+4+i*8,sy+4+(i%2)*14,6,6);
+  }
+  if(t===T.CHEST){
+    // Lid (lighter top portion)
+    ctx.fillStyle='#c07030';ctx.fillRect(sx+2,sy+2,TS-4,TS*0.38);
+    // Body
+    ctx.fillStyle='#9a4010';ctx.fillRect(sx+2,sy+TS*0.38+1,TS-4,TS*0.58);
+    // Clasp
+    ctx.fillStyle='#f0c040';ctx.fillRect(sx+TS/2-4,sy+TS*0.35,8,7);
+    ctx.fillStyle='#c09020';ctx.fillRect(sx+TS/2-3,sy+TS*0.35+1,6,5);
+    // Lid line
+    ctx.strokeStyle='#f0a000';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(sx+2,sy+TS*0.38);ctx.lineTo(sx+TS-2,sy+TS*0.38);ctx.stroke();
+    // Glow pulse
+    const gp=0.3+Math.sin(Date.now()*0.004)*0.2;
+    ctx.fillStyle=`rgba(255,200,60,${gp})`;ctx.fillRect(sx+2,sy+2,TS-4,TS-4);
   }
 
   // Bevel: top/left lighter, bottom/right darker
@@ -1009,6 +1065,13 @@ function depthM(){return Math.max(0,(pTileY()-SURF)*2);}
 function render(){
   const cw=cvs.width,ch=cvs.height;
   ctx.clearRect(0,0,cw,ch);
+
+  // Screen shake
+  ctx.save();
+  if(shakeDur>0){
+    const s=shakeDur*7;
+    ctx.translate((Math.random()-.5)*s,(Math.random()-.5)*s);
+  }
 
   // Sky
   const surfPx=SURF*TS-camY;
@@ -1077,6 +1140,7 @@ function render(){
   }
 
   drawPlayer();
+  ctx.restore(); // end shake
 
   // Warp ring animation
   if(warpActive){
@@ -1109,6 +1173,18 @@ let hudT=0,firstFrame=true;
 function updateHUD(dt){
   hudT+=dt;
   if(totalIncome>0){money+=totalIncome*dt;checkWin();}
+  // Depth milestones
+  const curD=depthM();
+  if(curD>depthRecord){
+    const ms=[10,20,50,100,150,200,300,400,500];
+    for(const m of ms){
+      if(depthRecord<m&&curD>=m){
+        const bonus=m*150;money+=bonus;checkWin();
+        showNotif('🏆 深さ'+m+'m到達！+'+bonus.toLocaleString()+'円！','money');
+      }
+    }
+    depthRecord=curD;
+  }
   if(hudT>0.12){
     hudT=0;
     document.getElementById('vm').textContent=Math.floor(money).toLocaleString();
